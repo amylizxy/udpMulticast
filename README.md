@@ -8,4 +8,4 @@
 # 使用说明
   - **app 只需要集成LANDiscoveryLib 这个library工程，具体调用，如果是搜索者请参考 phoneClient中的调用，如果是被搜索者请参考tvServer中的调用；**
   - **client 包下，对应搜索者；server 包下，对应被搜索者；**
-  - **base 包下 均为封装的一些交互数据和udp包格式等；**
+  - **base 包下 均为封装的一些交互数据和udp包格式等；用户可以自定义搜索请求数据RequestSearchData，以及搜索到设备时，设备返回的数据DeviceData**
