@@ -4,7 +4,6 @@ package com.example.amyli.my.server;
  * Created by amyli on 2017/2/13.
  */
 
-import com.example.amyli.my.base.BaseUserData;
 import com.example.amyli.my.base.DeviceData;
 import com.example.amyli.my.base.RequestSearchData;
 import com.example.amyli.my.base.SearchConst;
@@ -190,17 +189,6 @@ public abstract class SearchServer {
             return true;
         }
         return false;
-    }
-
-    /**
-     * 获取本机在Wifi中的IP
-     * 默认都是返回true，如果需要真实验证，需调用自己重写本方法
-     *
-     * @param ip 需要判断的ip地址
-     * @return true-是本机地址
-     */
-    public boolean isOwnIp(String ip) {
-        return true;
     }
 
     /**

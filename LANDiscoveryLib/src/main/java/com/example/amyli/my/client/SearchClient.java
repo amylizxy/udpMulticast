@@ -16,6 +16,7 @@ import java.util.Set;
 
 /**
  * Created by amyli on 2017/2/13.
+ * 局域网中的设备搜索者，包含开启搜索，关闭搜索，以及搜索设备的状态回调
  */
 
 public abstract class SearchClient {
@@ -52,6 +53,10 @@ public abstract class SearchClient {
         }
     }
 
+    /**
+     * 完成初始化，开始搜索设备
+     * @return
+     */
     public boolean init() {
         isOpen = true;
         onSearchStart();
@@ -78,6 +83,9 @@ public abstract class SearchClient {
     }
 
 
+    /**
+     * 关闭搜索设备，释放资源等
+     */
     public void close() {
         isOpen = false;
         if (sendThread != null) {
@@ -98,6 +106,10 @@ public abstract class SearchClient {
         onSearchFinish();
     }
 
+    /**
+     * 是否开启了局域网搜索功能
+     * @return
+     */
     public static boolean isOpen() {
         return isOpen;
     }
@@ -106,14 +118,28 @@ public abstract class SearchClient {
         SearchClient.isOpen = isOpen;
     }
 
+    /**
+     * 开启了搜索功能，回调给app
+     */
     public abstract void onSearchStart();
 
+    /**
+     * 发现了设备，回调给app
+     * @param dev
+     */
     public abstract void onSearchDev(BaseUserData dev);
 
+    /**
+     * 结束了发现过程，回调给app
+     */
     protected abstract void onSearchFinish();
 
     public abstract void printLog(String msg);
 
+    /**
+     * 发送搜索请求，并能指定想要发现的是支持哪种功能
+     * @param sock
+     */
     private void send(MulticastSocket sock) {
         if (sock == null || sock.isClosed()) {
             return;
@@ -155,6 +181,10 @@ public abstract class SearchClient {
         close();
     }
 
+    /**
+     * 实现收到server返回设备信息，并解析数据
+     * @param sock
+     */
     private void receive(MulticastSocket sock) {
         if (sock == null || sock.isClosed()) {
             return;
