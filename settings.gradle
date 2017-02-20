@@ -1,0 +1,1 @@
+include ':phoneClient',':tvServer',':LANDiscoveryLib'
