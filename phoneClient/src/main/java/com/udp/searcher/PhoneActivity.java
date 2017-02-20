@@ -152,4 +152,5 @@ public class PhoneActivity extends AppCompatActivity implements View.OnClickList
     private <V extends View> V $(int id) {
         return (V) findViewById(id);
     }
+
 }
