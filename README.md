@@ -6,6 +6,6 @@
 # 对应的代码实现说明，请见 http://blog.csdn.net/lixin88/article/details/56013014
 
 # 使用说明
-  app 只需要集成LANDiscoveryLib 这个library工程，具体调用，如果是搜索者请参考 phoneClient中的调用，如果是被搜索者请参考tvServer中的调用；
-  client 包下，对应搜索者；server 包下，对应被搜索者；
-  base 包下 均为封装的一些交互数据和udp包格式等；
+  - **app 只需要集成LANDiscoveryLib 这个library工程，具体调用，如果是搜索者请参考 phoneClient中的调用，如果是被搜索者请参考tvServer中的调用；**
+  - **client 包下，对应搜索者；server 包下，对应被搜索者；**
+  - **base 包下 均为封装的一些交互数据和udp包格式等；**
