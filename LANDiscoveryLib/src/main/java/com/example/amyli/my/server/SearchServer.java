@@ -39,34 +39,34 @@ public abstract class SearchServer {
      */
     public SearchServer(int userDataMaxLen) {
         this.mUserDataMaxLen = userDataMaxLen;
-
-        try {
-            sock = new MulticastSocket(SearchConst.S_PORT);
-            multicastInet = InetAddress.getByName(SearchConst.MULTICAST_IP);
-
-            sock.joinGroup(multicastInet);
-            sock.setLoopbackMode(false);// 必须是false才能开启广播功能
-
-        } catch (IOException e) {
-            printLog(e.toString());
-            e.printStackTrace();
-            close();
-        }
     }
 
     /**
      * 打开
      * 即可以上线
      */
-    public boolean init() {
+    public synchronized boolean init() {
         printLog("init");
-        mOpenFlag = true;
+        try {
+            sock = new MulticastSocket(SearchConst.S_PORT);
+            multicastInet = InetAddress.getByName(SearchConst.MULTICAST_IP);
+
+            sock.joinGroup(multicastInet);
+            sock.setLoopbackMode(false);// 必须是false才能开启广播功能
+        } catch (IOException e) {
+            printLog(e.toString());
+            e.printStackTrace();
+            close();
+            return false;
+        }
+
         serverThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 receiveAndSend();
             }
         });
+        mOpenFlag = true;
         serverThread.start();
         return true;
     }
@@ -74,7 +74,7 @@ public abstract class SearchServer {
     /**
      * 关闭
      */
-    public void close() {
+    public synchronized void close() {
         printLog("close");
 
         mOpenFlag = false;
@@ -89,6 +89,7 @@ public abstract class SearchServer {
                 e.printStackTrace();
             } finally {
                 sock.close();
+                sock = null;
             }
         }
     }
@@ -108,6 +109,7 @@ public abstract class SearchServer {
                 printLog("server before receive");
                 // waiting for search from host
                 sock.receive(recePack);
+                printLog("server after receive");
                 // verify the data
                 if (verifySearchReq(recePack)) {
                     byte[] userData = DeviceData.packDeviceData(ServerConfig.getDeviceData());
@@ -131,7 +133,6 @@ public abstract class SearchServer {
 
             } catch (IOException e) {
                 printLog(e.toString());
-                close();
                 break;
             }
         }

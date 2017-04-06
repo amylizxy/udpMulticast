@@ -1,9 +1,13 @@
 package com.udp.device;
 
+import android.content.Context;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -17,10 +21,10 @@ import com.example.amyli.my.server.ServerConfig;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.List;
 
 
-public class TVActivity extends AppCompatActivity implements View.OnClickListener {
+public class TVActivity extends AppCompatActivity implements View.OnClickListener, NetworkUtils
+        .OnNetworkChangeListener {
     private static final byte DEVICE_TYPE_NAME_21 = 0x21;
     private static final byte DEVICE_TYPE_ROOM_22 = 0x22;
 
@@ -32,18 +36,23 @@ public class TVActivity extends AppCompatActivity implements View.OnClickListene
     private TextView msgTxt;
     private SearchServer searchServer;
     private MyHandler mHandler = new MyHandler(this);
+    private WifiManager.MulticastLock multicastLock;
 
-    private List<RequestSearchData> requestList = new ArrayList<>();
+    private ArrayList<RequestSearchData> requestList = new ArrayList<>();
+
+    private boolean isOpenFuc = false;
+
+    private String curWifiId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_device);
         initView();
-        initConfig();
+        init();
     }
 
-    private void initConfig() {
+    private void init() {
         ServerConfig.setFunc(1);
         DeviceData deviceData = new DeviceData();
         deviceData.setDevId("aaa111");
@@ -51,22 +60,9 @@ public class TVActivity extends AppCompatActivity implements View.OnClickListene
         deviceData.setServiceName("aa");
         deviceData.setPkgName(this.getPackageName());
         ServerConfig.setDeviceData(deviceData);
-    }
 
-    private void initView() {
-        openBtn = $(R.id.open);
-        closeBtn = $(R.id.close);
-        msgTxt = $(R.id.msg);
-        openBtn.setOnClickListener(this);
-        closeBtn.setOnClickListener(this);
-    }
-
-    public void openBeSearch() {
-        if (searchServer != null && searchServer.isOpen()) {
-            Toast.makeText(this, "已经开启被发现功能，请稍等", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        mHandler.sendEmptyMessage(START_BE_SEARCH);
+        NetworkUtils.init(this);
+        NetworkUtils.registerNetworkChangeListener(this);
         searchServer = new SearchServer(1024) {
 
             @Override
@@ -81,8 +77,84 @@ public class TVActivity extends AppCompatActivity implements View.OnClickListene
                 mHandler.sendEmptyMessage(SHOW_SEARCH_REQUEST);
             }
         };
+    }
 
+    private void acquireMulticast() {
+        WifiManager wifiManager = (WifiManager) this.getApplicationContext().getSystemService
+                (Context.WIFI_SERVICE);
+        multicastLock = wifiManager.createMulticastLock("multicast.test");
+        multicastLock.acquire();
+    }
+
+    private void initView() {
+        openBtn = $(R.id.open);
+        closeBtn = $(R.id.close);
+        msgTxt = $(R.id.msg);
+        msgTxt.setMovementMethod(ScrollingMovementMethod.getInstance());
+        openBtn.setOnClickListener(this);
+        closeBtn.setOnClickListener(this);
+    }
+
+    public void openBeSearch() {
+//        acquireMulticast();
+        if (NetworkUtils.getNetworkType(this) != NetworkUtils.NETWORK_TYPE_WIFI) {
+            Toast.makeText(this, "请在wifi下使用局域网发现", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (searchServer != null && searchServer.isOpen()) {
+            Toast.makeText(this, "已经开启被发现功能，请稍等", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        mHandler.sendEmptyMessage(START_BE_SEARCH);
         searchServer.init();
+    }
+
+    private void openFunc() {
+        if (NetworkUtils.getNetworkType(this) != NetworkUtils.NETWORK_TYPE_WIFI) {
+            Toast.makeText(this, "请在wifi下使用局域网发现", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        openBeSearch();
+        curWifiId = getCurWifiSSID();
+        isOpenFuc = true;
+    }
+
+    private void closeFunc() {
+        closeBeSearch();
+        isOpenFuc = false;
+    }
+
+    @Override
+    public void onNetworkChanged() {
+        int curNetworkType = NetworkUtils.getNetworkType(this);
+        Log.i("lx", "getNetworkType:" + curNetworkType);
+
+        if (curNetworkType == NetworkUtils.NETWORK_TYPE_WIFI) {//是wifi网络
+            Log.i("lx", "last wifiid:" + curWifiId + ",cur wifiid:" + getCurWifiSSID());
+            if (isOpenFuc && getCurWifiSSID() != null && !getCurWifiSSID().equals(curWifiId))
+            {//开启了搜索功能，并且切换了wifi
+                Log.i("lx", "network change,start besearch again");
+                closeBeSearch(); //只要有网络变化，就先关掉设备搜索功能，因为手机的网络切换时，即使是wifi1切换到wifi2，也可能收到多次广播的网络类型都一样；
+                openBeSearch();
+                curWifiId = getCurWifiSSID();
+            }
+        } else {//无网或者移动网络
+            Log.i("lx", "network change,end besearch");
+            curWifiId = null;
+            if (isOpenFuc) {
+                closeBeSearch();
+            }
+        }
+    }
+
+    private String getCurWifiSSID() {
+        WifiManager wifiManager = (WifiManager) this.getApplicationContext().getSystemService
+                (Context.WIFI_SERVICE);
+        WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+        if (null != wifiInfo) {
+            return wifiInfo.getSSID();
+        }
+        return null;
     }
 
     private class MyHandler extends Handler {
@@ -97,7 +169,7 @@ public class TVActivity extends AppCompatActivity implements View.OnClickListene
             TVActivity activity = ref.get();
             switch (msg.what) {
                 case SHOW_SEARCH_REQUEST:
-                    for (RequestSearchData d : activity.requestList) {
+                    for (RequestSearchData d : (ArrayList<RequestSearchData>) requestList.clone()) {
                         String show = d.toString();
                         activity.msgTxt.append(show + "\n\n");
                     }
@@ -115,6 +187,10 @@ public class TVActivity extends AppCompatActivity implements View.OnClickListene
     }
 
     public void closeBeSearch() {
+        if (multicastLock != null) {
+            multicastLock.release();
+        }
+
         if (searchServer != null) {
             searchServer.close();
         }
@@ -130,10 +206,10 @@ public class TVActivity extends AppCompatActivity implements View.OnClickListene
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.open:
-                openBeSearch();
+                openFunc();
                 break;
             case R.id.close:
-                closeBeSearch();
+                closeFunc();
                 break;
         }
     }

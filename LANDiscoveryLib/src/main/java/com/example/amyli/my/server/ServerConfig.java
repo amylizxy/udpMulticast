@@ -26,7 +26,5 @@ public class ServerConfig {
 
     public static void setDeviceData(DeviceData deviceData) {
         ServerConfig.deviceData = deviceData;
-        deviceData.setIp(Utils.getHostIP());
-        deviceData.setPort(SearchConst.S_PORT);
     }
 }

@@ -7,10 +7,10 @@ import com.example.amyli.my.base.Utils;
 import com.example.amyli.my.base.BaseUserData;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.net.SocketException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -31,35 +31,34 @@ public abstract class SearchClient {
     Thread sendThread, receiveThread;
     private InetAddress multicastInet;
     private int seq;
+    private static int REQUEST_INTERVEL_TIME = 5 * 1000;//5s
 
     public SearchClient(int userDataMaxLen) {
         seq = 0;
         mUserDataMaxLen = userDataMaxLen;
         mDeviceSet = new HashSet<>();
+    }
+
+    /**
+     * 完成初始化
+     *
+     * @return
+     */
+    public synchronized void startSearch() {
         try {
             sock = new MulticastSocket(SearchConst.C_PORT);
             multicastInet = InetAddress.getByName(SearchConst.MULTICAST_IP);
             sock.joinGroup(multicastInet);
             sock.setLoopbackMode(false);// 必须是false才能开启广播功能
-
+            sock.setTimeToLive(255);
             byte[] sendData = new byte[1024];
             mSendPack = new DatagramPacket(sendData, sendData.length, multicastInet, SearchConst
                     .S_PORT);
-
         } catch (IOException e) {
             printLog(e.toString());
             e.printStackTrace();
             close();
         }
-    }
-
-    /**
-     * 完成初始化，开始搜索设备
-     * @return
-     */
-    public boolean init() {
-        isOpen = true;
-        onSearchStart();
 
         sendThread = new Thread(new Runnable() {
             @Override
@@ -68,8 +67,6 @@ public abstract class SearchClient {
                 send(sock);
             }
         });
-        sendThread.start();
-
         receiveThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -77,16 +74,18 @@ public abstract class SearchClient {
                 receive(sock);
             }
         });
-        receiveThread.start();
 
-        return true;
+        isOpen = true;
+        sendThread.start();
+        receiveThread.start();
+        onSearchStart();
     }
 
 
     /**
      * 关闭搜索设备，释放资源等
      */
-    public void close() {
+    public synchronized void close() {
         isOpen = false;
         if (sendThread != null) {
             sendThread.interrupt();
@@ -101,6 +100,7 @@ public abstract class SearchClient {
                 e.printStackTrace();
             } finally {
                 sock.close();
+                sock = null;
             }
         }
         onSearchFinish();
@@ -108,6 +108,7 @@ public abstract class SearchClient {
 
     /**
      * 是否开启了局域网搜索功能
+     *
      * @return
      */
     public static boolean isOpen() {
@@ -125,6 +126,7 @@ public abstract class SearchClient {
 
     /**
      * 发现了设备，回调给app
+     *
      * @param dev
      */
     public abstract void onSearchDev(BaseUserData dev);
@@ -138,6 +140,7 @@ public abstract class SearchClient {
 
     /**
      * 发送搜索请求，并能指定想要发现的是支持哪种功能
+     *
      * @param sock
      */
     private void send(MulticastSocket sock) {
@@ -166,23 +169,24 @@ public abstract class SearchClient {
                 sock.send(mSendPack);
                 printLog("send seq:" + seq);
             } catch (IOException e) {
+                printLog("send IOException:" + e.toString());
                 e.printStackTrace();
                 break;
             }
 
             try {
-                Thread.sleep(5000);
+                Thread.sleep(REQUEST_INTERVEL_TIME);
             } catch (InterruptedException e) {
+                printLog("send InterruptedException:" + e.toString());
                 e.printStackTrace();
-                break;
             }
             seq++;
         }
-        close();
     }
 
     /**
      * 实现收到server返回设备信息，并解析数据
+     *
      * @param sock
      */
     private void receive(MulticastSocket sock) {
@@ -207,10 +211,10 @@ public abstract class SearchClient {
                 }
             } catch (IOException e) {
                 e.printStackTrace();
+                printLog("receive IOException:" + e.toString());
                 break;
             }
         }
-        close();
     }
 
     /**
@@ -226,12 +230,6 @@ public abstract class SearchClient {
 
         String ip = pack.getAddress().getHostAddress();
         int port = pack.getPort();
-        for (BaseUserData d : mDeviceSet) {
-            if (d.getIp().equals(ip)) {
-                printLog("is the same ip device");
-                return false;
-            }
-        }
 
         // 解析头部数据
         byte[] data = pack.getData();

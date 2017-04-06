@@ -40,7 +40,7 @@ public class Client {
                 Log.i("lx","client:"+log);
             }
         };
-        client.init();
+        client.startSearch();
         Log.i("lx","client init");
     }
 
