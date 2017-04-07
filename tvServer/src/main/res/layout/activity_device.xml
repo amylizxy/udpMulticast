@@ -25,6 +25,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
-        android:layout_below="@+id/start_search" android:layout_marginTop="20dp"
+        android:layout_below="@+id/start_search"
+        android:layout_marginTop="20dp"
+        android:fadeScrollbars="false"
+        android:scrollbarStyle="outsideOverlay" android:scrollbars="vertical"
         android:text="还未开启被发现功能"/>
 </LinearLayout>
