@@ -21,7 +21,6 @@ import java.util.ArrayList;
  * 如果是Activity/Fragment等对象实现了OnNetworkChangeListener并注册监听，
  * 务必在onDestroy的时候解除监听，否则即使Activity被destroy掉，由于有对该Activity的引用，
  * 将会导致该Activity的内存无法释放。
- * @author zhaoxinyang
  */
 public final class NetworkUtils {
 
